@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpamGuard Cloud — Industrial Security Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080b12;--card:#0f1219;--border:#1c2232;--accent:#00d4ff;
+  --danger:#ff2d55;--safe:#00e676;--warn:#ffb300;--text:#dde4f0;--muted:#4a5470;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;
+  border-bottom:1px solid var(--border);background:rgba(8,11,18,.95);
+  position:sticky;top:0;z-index:100;}
+.logo{font-size:1.2rem;font-weight:800;color:var(--accent)}
+.logo em{color:var(--text);font-style:normal}
+.live{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;
+  font-size:.7rem;color:var(--safe);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--safe);
+  box-shadow:0 0 8px var(--safe);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+main{max-width:1380px;margin:0 auto;padding:24px 20px}
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.stat-label{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1.8px;margin-bottom:10px}
+.stat-value{font-size:2rem;font-weight:800;line-height:1}
+.c-a{color:var(--accent)}.c-d{color:var(--danger)}.c-s{color:var(--safe)}.c-w{color:var(--warn)}
+.stat-sub{font-size:.7rem;color:var(--muted);margin-top:5px;font-family:'JetBrains Mono',monospace}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-bottom:18px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+  border-bottom:1px solid var(--border);}
+.pt{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:2px;
+  color:var(--muted);display:flex;align-items:center;gap:8px}
+.pt::before{content:"";width:3px;height:12px;background:var(--accent);border-radius:2px}
+.pc{font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--muted)}
+#feed{height:400px;overflow-y:auto}
+#feed::-webkit-scrollbar{width:3px}
+#feed::-webkit-scrollbar-thumb{background:var(--border)}
+.msg{display:flex;align-items:flex-start;gap:10px;padding:11px 18px;
+  border-bottom:1px solid rgba(28,34,50,.5);animation:sl .2s ease;}
+@keyframes sl{from{opacity:0;transform:translateX(-6px)}to{opacity:1}}
+.tag{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:700;
+  padding:2px 7px;border-radius:4px;margin-top:2px}
+.tag.spam{background:rgba(255,45,85,.15);color:var(--danger);border:1px solid rgba(255,45,85,.2)}
+.tag.ham{background:rgba(0,230,118,.1);color:var(--safe);border:1px solid rgba(0,230,118,.15)}
+.mc{flex:1;min-width:0}
+.mt{font-size:.81rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--muted);
+  margin-top:3px;display:flex;gap:10px}
+.mp{font-weight:700}.mp.h{color:var(--danger)}.mp.l{color:var(--safe)}
+#devlist{overflow:hidden}
+.dev{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 18px;border-bottom:1px solid rgba(28,34,50,.5)}
+.dl{display:flex;align-items:center;gap:9px}
+.dd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dd.active{background:var(--safe);box-shadow:0 0 6px var(--safe)}
+.dd.blocked{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.dn{font-size:.81rem;font-weight:600}
+.ds{font-family:'JetBrains Mono',monospace;font-size:.61rem;color:var(--muted);margin-top:2px}
+.db{font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:700;
+  padding:2px 8px;border-radius:4px}
+.db.active{background:rgba(0,230,118,.1);color:var(--safe);border:1px solid rgba(0,230,118,.15)}
+.db.blocked{background:rgba(255,45,85,.1);color:var(--danger);border:1px solid rgba(255,45,85,.2)}
+.rate-wrap{padding:14px 18px}
+.rate-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:6px}
+.rate-fill{height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--safe),var(--warn),var(--danger));transition:width .5s}
+.test-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.82rem;
+  padding:12px;resize:vertical;min-height:72px;outline:none;transition:border-color .2s;line-height:1.6}
+textarea:focus{border-color:var(--accent)}
+.btn-row{display:flex;gap:10px;margin-top:10px}
+.btn{padding:10px 20px;border-radius:7px;border:none;cursor:pointer;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;transition:opacity .15s}
+.btn:hover{opacity:.85}.btn-p{background:var(--accent);color:#000}
+.btn-o{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+#tres{display:none;margin-top:14px;padding:14px;border-radius:8px;border:1px solid var(--border)}
+#tres.spam{border-color:var(--danger);background:rgba(255,45,85,.05)}
+#tres.ham{border-color:var(--safe);background:rgba(0,230,118,.04)}
+.tv{font-size:1.3rem;font-weight:800;margin-bottom:8px}
+.tv.spam{color:var(--danger)}.tv.ham{color:var(--safe)}
+.bar-wrap{margin:7px 0}
+.bl{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--muted);margin-bottom:3px}
+.bar2{height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+.bf{height:100%;border-radius:3px;transition:width .5s}
+.bf.spam{background:var(--danger)}.bf.ham{background:var(--safe)}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pill{font-family:'JetBrains Mono',monospace;font-size:.68rem;padding:3px 10px;
+  border-radius:14px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.18);color:var(--accent)}
+.pill.d{background:rgba(255,45,85,.1);border-color:rgba(255,45,85,.25);color:var(--danger)}
+.empty{padding:30px;text-align:center;color:var(--muted);
+  font-family:'JetBrains Mono',monospace;font-size:.75rem}
+.sp{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,212,255,.3);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">SpamGuard <em>Cloud</em></div>
+  <div style="display:flex;align-items:center;gap:20px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)" id="uptime-el">{{ uptime }}</span>
+    <div class="live"><div class="dot"></div>LIVE</div>
+  </div>
+</header>
+<main>
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat"><div class="stat-label">Total Processed</div>
+      <div class="stat-value c-a" id="s-total">{{ stats.total }}</div>
+      <div class="stat-sub">messages analysed</div></div>
+    <div class="stat"><div class="stat-label">Spam Detected</div>
+      <div class="stat-value c-d" id="s-spam">{{ stats.spam }}</div>
+      <div class="stat-sub">blocked threats</div></div>
+    <div class="stat"><div class="stat-label">Legitimate</div>
+      <div class="stat-value c-s" id="s-ham">{{ stats.ham }}</div>
+      <div class="stat-sub">passed through</div></div>
+    <div class="stat"><div class="stat-label">Spam Rate</div>
+      <div class="stat-value c-w" id="s-rate">0%</div>
+      <div class="stat-sub">of all messages</div></div>
+    <div class="stat"><div class="stat-label">Devices</div>
+      <div class="stat-value c-a" id="s-devices">0</div>
+      <div class="stat-sub">connected endpoints</div></div>
+  </div>
+
+  <div class="grid">
+    <!-- Feed -->
+    <div class="panel">
+      <div class="ph"><div class="pt">Live Message Feed</div>
+        <span class="pc" id="feed-count">0 messages</span></div>
+      <div id="feed"><div class="empty">Waiting for messages...<br><br>Start device_simulator.py to see live detections</div></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- Threat bar -->
+      <div class="panel">
+        <div class="ph"><div class="pt">Threat Level</div></div>
+        <div class="rate-wrap">
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--muted)">Spam rate</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--warn)" id="rate-pct">0%</span>
+          </div>
+          <div class="rate-bar"><div class="rate-fill" id="rate-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Devices -->
+      <div class="panel" style="flex:1">
+        <div class="ph"><div class="pt">Device Registry</div>
+          <span class="pc" id="dev-count">0 devices</span></div>
+        <div id="devlist"><div class="empty">No devices connected yet</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual test -->
+  <div class="test-box">
+    <div class="pt" style="margin-bottom:14px">Manual Message Test</div>
+    <textarea id="tinput" placeholder="Type any message to test against the cloud ML engine...&#10;&#10;Try: 'Claim your free laptop under government scheme. Apply now!'"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-p" onclick="testMsg()">Analyse via Cloud API</button>
+      <button class="btn btn-o" onclick="setEx('SPAM')">Spam Example</button>
+      <button class="btn btn-o" onclick="setEx('HAM')">Legit Example</button>
+    </div>
+    <div id="tres">
+      <div class="tv" id="tv"></div>
+      <div class="bar-wrap"><div class="bl" id="bl-s">SPAM: 0%</div>
+        <div class="bar2"><div class="bf spam" id="bs" style="width:0%"></div></div></div>
+      <div class="bar-wrap"><div class="bl" id="bl-h">LEGITIMATE: 0%</div>
+        <div class="bar2"><div class="bf ham" id="bh" style="width:0%"></div></div></div>
+      <div class="pills" id="tpills"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const SPAM_EX = [
+  "Congratulations! You have won Rs 10000 cash. Claim now at win-prize.com",
+  "Your Paytm KYC is pending. Update now to avoid suspension.",
+  "Claim your free laptop under government student scheme. Apply now!",
+  "Earn money quickly using this secret online method. Register today.",
+];
+const HAM_EX = [
+  "Hey, are we still meeting for lunch today?",
+  "I pushed the code to GitHub. Can you review it?",
+  "The professor uploaded the lecture slides.",
+  "Did you complete the lab record today?",
+];
+
+function setEx(t){
+  const arr = t==='SPAM'?SPAM_EX:HAM_EX;
+  document.getElementById('tinput').value = arr[Math.floor(Math.random()*arr.length)];
+}
+
+async function testMsg(){
+  const msg = document.getElementById('tinput').value.trim();
+  if(!msg) return;
+  const btn = document.querySelector('.btn-p');
+  btn.innerHTML='<span class="sp"></span> Sending...';
+  btn.disabled=true;
+  try{
+    const r = await fetch('/api/predict',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg,device_id:'manual-test'})});
+    const d = await r.json();
+    const isSpam = d.prediction==='SPAM';
+    const box = document.getElementById('tres');
+    box.style.display='block';
+    box.className = isSpam?'spam':'ham';
+    document.getElementById('tv').className='tv '+(isSpam?'spam':'ham');
+    document.getElementById('tv').textContent = isSpam?'🚨 SPAMMER DETECTED':'✅ LEGITIMATE MESSAGE';
+    document.getElementById('bl-s').textContent=`SPAM: ${d.spam_prob}%`;
+    document.getElementById('bl-h').textContent=`LEGITIMATE: ${d.ham_prob}%`;
+    setTimeout(()=>{
+      document.getElementById('bs').style.width=d.spam_prob+'%';
+      document.getElementById('bh').style.width=d.ham_prob+'%';
+    },50);
+    const pills = document.getElementById('tpills');
+    pills.innerHTML = (d.top_words||[]).map(w=>
+      `<span class="pill ${isSpam?'d':''}">${w}</span>`).join('');
+    setTimeout(poll,400);
+  }catch(e){alert('Error: '+e.message);}
+  finally{btn.textContent='Analyse via Cloud API';btn.disabled=false;}
+}
+
+async function poll(){
+  try{
+    const [sr,mr,dr] = await Promise.all([
+      fetch('/api/stats').then(r=>r.json()),
+      fetch('/api/queue?n=40').then(r=>r.json()),
+      fetch('/api/devices').then(r=>r.json()),
+    ]);
+    updateStats(sr); updateFeed(mr.messages); updateDevices(dr.devices);
+  }catch(e){}
+}
+
+function updateStats(s){
+  document.getElementById('s-total').textContent   = s.total.toLocaleString();
+  document.getElementById('s-spam').textContent    = s.spam.toLocaleString();
+  document.getElementById('s-ham').textContent     = s.ham.toLocaleString();
+  document.getElementById('s-rate').textContent    = s.spam_rate+'%';
+  document.getElementById('s-devices').textContent = s.devices_active;
+  document.getElementById('rate-pct').textContent  = s.spam_rate+'%';
+  document.getElementById('rate-bar').style.width  = Math.min(s.spam_rate,100)+'%';
+  const u=s.uptime_seconds, h=Math.floor(u/3600), m=Math.floor((u%3600)/60);
+  document.getElementById('uptime-el').textContent='Uptime: '+(h?h+'h ':'')+m+'m';
+}
+
+function updateFeed(msgs){
+  if(!msgs||!msgs.length) return;
+  const feed=document.getElementById('feed');
+  const empty=feed.querySelector('.empty');
+  if(empty) empty.remove();
+  document.getElementById('feed-count').textContent=msgs.length+' messages';
+  feed.innerHTML=msgs.slice(0,40).map(m=>{
+    const sp=m.prediction==='SPAM';
+    return`<div class="msg">
+      <span class="tag ${sp?'spam':'ham'}">${sp?'SPAM':'HAM'}</span>
+      <div class="mc">
+        <div class="mt">${esc(m.message)}</div>
+        <div class="mm">
+          <span>${m.timestamp}</span>
+          <span style="color:${sp?'var(--danger)':'var(--muted)'}">${m.device_id}</span>
+          <span class="mp ${sp?'h':'l'}">${m.spam_prob}% spam</span>
+          ${m.top_words&&m.top_words.length?'<span>'+m.top_words.slice(0,3).join(', ')+'</span>':''}
+        </div>
+      </div></div>`;}).join('');
+}
+
+function updateDevices(devs){
+  const keys=Object.keys(devs);
+  if(!keys.length) return;
+  document.getElementById('dev-count').textContent=keys.length+' devices';
+  document.getElementById('devlist').innerHTML=keys.map(id=>{
+    const d=devs[id];
+    const bl=d.status==='BLOCKED';
+    const sr=d.total>0?Math.round(d.spam/d.total*100):0;
+    return`<div class="dev">
+      <div class="dl">
+        <div class="dd ${bl?'blocked':'active'}"></div>
+        <div><div class="dn">${esc(id)}</div>
+          <div class="ds">${d.total} msgs · ${sr}% spam · ${d.last_seen}</div></div>
+      </div>
+      <span class="db ${bl?'blocked':'active'}">${d.status}</span></div>`;}).join('');
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+document.getElementById('tinput').addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='Enter') testMsg();
+});
+
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>
