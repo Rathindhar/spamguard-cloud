@@ -2,9 +2,20 @@ services:
   - type: web
     name: spamguard-cloud
     runtime: python
-    buildCommand: pip install -r requirements.txt && python train_on_render.py
+
+    buildCommand: |
+      echo "===== INSTALLING ====="
+      pip install -r requirements.txt
+
+      echo "===== TRAINING MODEL ====="
+      python train_on_render.py
+
+      echo "===== BUILD DONE ====="
+
     startCommand: gunicorn cloud_app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.6"
+
     healthCheckPath: /health
