@@ -301,7 +301,7 @@ save = {
     "best_name"          : best_name,
     "vectorizer"         : vectorizer,
     "behavioral_scaler"  : scaler,
-    "drift_detector"     : drift,
+    #"drift_detector"     : drift,
     "results"            : results[best_name],
     "all_results"        : results,
     "feature_names"      : ["spam_score","ham_score","url_count","caps_ratio","exclaim"],
