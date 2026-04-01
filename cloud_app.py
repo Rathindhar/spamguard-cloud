@@ -87,12 +87,23 @@ def ensure_model():
     if not load_model():
         print("\n🚀 Training model automatically...")
         try:
-            subprocess.run(["python", "train_on_render.py"], check=True)
+            result = subprocess.run(
+                ["python3", "train_on_render.py"],
+                capture_output=True,
+                text=True
+            )
+            print("STDOUT:\n", result.stdout)
+            print("STDERR:\n", result.stderr)
+
+            if result.returncode != 0:
+                print("❌ Training script failed!")
+                return
+
             print("✅ Training done. Reloading...")
             load_model()
+
         except Exception as e:
             print("❌ Training failed:", e)
-
 # ------------------------------------------------------------
 # PREDICTION
 # ------------------------------------------------------------
