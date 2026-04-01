@@ -1,6 +1,5 @@
 # ============================================================
 #  cloud_app.py — SpamGuard Cloud (Render version)
-#  Uses self-contained model trained by train_on_render.py
 # ============================================================
 
 import os, re, sys, pickle, time, uuid, threading, subprocess
@@ -35,6 +34,9 @@ STOP = {
     "up","out","s","t","ll",
 }
 
+# ------------------------------------------------------------
+# CLEANING
+# ------------------------------------------------------------
 def clean(text):
     text = re.sub(r"[^a-z\s]", " ", text.lower())
     return " ".join(w for w in text.split() if w not in STOP and len(w) > 1)
@@ -50,9 +52,9 @@ def get_behavioral(text, spam_kw, ham_kw):
     return np.array([[max(0, spam_hits-ham_hits), ham_hits,
                       url_count, caps, exclaim]], dtype=float)
 
-# ============================================================
-# 🔥 MODEL LOADING + AUTO TRAINING
-# ============================================================
+# ------------------------------------------------------------
+# MODEL LOADING
+# ------------------------------------------------------------
 def load_model():
     global model_data
 
@@ -60,10 +62,10 @@ def load_model():
     print(f"📁 Exists: {os.path.exists(MODEL_PATH)}")
 
     if os.path.exists(BASE+'/data'):
-        print(f"📂 data/ contents: {os.listdir(BASE+'/data')}")
+        print(f"📂 data/: {os.listdir(BASE+'/data')}")
 
     if not os.path.exists(MODEL_PATH):
-        print("⚠️ Model not found!")
+        print("⚠️ Model not found")
         return False
 
     try:
@@ -75,23 +77,25 @@ def load_model():
         return True
 
     except Exception as e:
-        print(f"❌ ERROR loading model: {e}")
-        import traceback; traceback.print_exc()
+        print("❌ Model load error:", e)
         return False
 
-
-# 🔥 AUTO TRAIN IF MODEL NOT FOUND
+# ------------------------------------------------------------
+# AUTO TRAIN IF MISSING
+# ------------------------------------------------------------
 def ensure_model():
     if not load_model():
-        print("\n🚀 Training model now (auto-fix)...")
+        print("\n🚀 Training model automatically...")
         try:
             subprocess.run(["python", "train_on_render.py"], check=True)
-            print("✅ Training completed. Reloading model...")
+            print("✅ Training done. Reloading...")
             load_model()
         except Exception as e:
             print("❌ Training failed:", e)
 
-
+# ------------------------------------------------------------
+# PREDICTION
+# ------------------------------------------------------------
 def predict(message, device_id="unknown"):
     if model_data is None:
         return {"message":message,"prediction":"MODEL NOT LOADED",
@@ -118,12 +122,6 @@ def predict(message, device_id="unknown"):
         proba = clf.predict_proba(X_c)[0]
 
     is_spam  = bool(proba[1] >= SPAM_THRESHOLD)
-    spam_pct = round(float(proba[1]) * 100, 1)
-
-    feat_out  = vectorizer.get_feature_names_out()
-    tfidf_arr = X_tfidf.toarray()[0]
-    top_words = [feat_out[i] for i in np.argsort(tfidf_arr)[::-1]
-                 if tfidf_arr[i] > 0][:5]
 
     result = {
         "id"        : str(uuid.uuid4())[:8],
@@ -131,9 +129,8 @@ def predict(message, device_id="unknown"):
         "device_id" : device_id,
         "message"   : message,
         "prediction": "SPAM" if is_spam else "LEGITIMATE",
-        "spam_prob" : spam_pct,
+        "spam_prob" : round(float(proba[1]) * 100, 1),
         "ham_prob"  : round(float(proba[0]) * 100, 1),
-        "top_words" : top_words,
         "is_spam"   : is_spam,
     }
 
@@ -141,28 +138,45 @@ def predict(message, device_id="unknown"):
         MESSAGE_QUEUE.appendleft(result)
         stats["total"] += 1
         stats["spam" if is_spam else "ham"] += 1
-        prev   = DEVICE_REGISTRY.get(device_id, {"total":0,"spam":0})
-        spam_c = prev["spam"] + (1 if is_spam else 0)
-        DEVICE_REGISTRY[device_id] = {
-            "last_seen": result["timestamp"],
-            "total"    : prev["total"] + 1,
-            "spam"     : spam_c,
-            "status"   : "BLOCKED" if spam_c >= 3 else "ACTIVE",
-        }
 
     return result
 
+# ------------------------------------------------------------
+# ROUTES
+# ------------------------------------------------------------
+
+# ✅ DASHBOARD FIXED
+@app.route("/")
+def dashboard():
+    uptime = int(time.time() - stats["started"])
+    h, m   = divmod(uptime // 60, 60)
+    perf   = model_data.get("results", {}) if model_data else {}
+    return render_template("dashboard.html", stats=stats,
+                           uptime=f"{h}h {m}m" if h else f"{m}m",
+                           model_loaded=model_data is not None, perf=perf)
+
+@app.route("/api/predict", methods=["POST"])
+def api_predict():
+    data = request.get_json(silent=True) or {}
+    msg  = data.get("message","").strip()
+    if not msg:
+        return jsonify({"error":"Provide message"}), 400
+    return jsonify(predict(msg, data.get("device_id","user")))
 
 @app.route("/health")
 def health():
-    return jsonify({"status":"healthy",
-                    "model":"loaded" if model_data else "not loaded",
-                    "uptime":int(time.time()-stats["started"])})
+    return jsonify({
+        "status":"healthy",
+        "model":"loaded" if model_data else "not loaded",
+        "uptime":int(time.time()-stats["started"])
+    })
 
-# 🔥 IMPORTANT CHANGE HERE
+# ------------------------------------------------------------
+# STARTUP
+# ------------------------------------------------------------
 ensure_model()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    print(f"\n🚀 Dashboard: http://localhost:{port}\n")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    print(f"\n🚀 Running on port {port}")
+    app.run(host="0.0.0.0", port=port)
