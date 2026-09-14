@@ -165,7 +165,7 @@ GET /health
 
 ---
 
-## 🎓 What to say in your viva
+## About the architecture
 
 > "Our system implements a three-layer industrial mobile cloud architecture.
 > Layer one consists of mobile edge devices — represented here by our device
